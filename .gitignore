@@ -1,0 +1,8 @@
+.idea
+.idea/*
+*.pyc
+__pycache__/
+*/__pycache__
+*__pycache__*
+kuiba_to_kai_conf*
+.history
