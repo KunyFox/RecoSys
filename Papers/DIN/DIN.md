@@ -3,7 +3,7 @@
 
 ## BACKGROUND
 在 Alibaba 等电商网站，广告是一种天然的货品。这篇 paper 中，在没有额外的说明时，我们将广告视为一种货品。
-<div align=center>![](pics/Figure1.png) \
+<div align=center><img src=pics/Figure1.png></div> \
 如 Figure1 所示，Alibaba 的广告系统有两阶段构成：\
 1）匹配阶段：通过协同过滤等方法根据用户信息生成候选集；\
 2）排序阶段：对候选广告预测 CTR 并选出头部候选。\
