@@ -7,10 +7,12 @@
 HCB 的流程类似于 DFS 算法。然而，以 DFS 方法选择路径时会引起不确定性，特别是对较深的树。首先，如果父节点的选择是不准确的，此后所有的选择都将会收到影响，作者将之称为 error propagation。其次，由于用户的兴趣往往是多样的，那么很有可能用户对树中不同位置的多个节点感兴趣。因此，作者进一步提出 progressive HCB(pHCB) 算法来减少不确定性改善推荐效果。类似 BFS 算法，pHCB 以一种自适应的自上而下的方法探索 item。一方面，这种方式维持有限数量的节点作为感受野。当一个节点被多次访问并被证明这个兴趣成立后，那么这个节点的子节点将会被包含到感受野中，并且这个节点将被移除。另一方面，pHCB 通过 bandit 算法在感受野中的节点上探索用户不同方面的兴趣。最后，相比于 HCB，pHCB 避免重复选取同一个节点中的 item。
 
 ## PRELIMINARY AND PROBLEM
+
 <div align="center"> <img src=pics/Table1.png> </div>
 
 ### 1.UCB for Recommender Systems
 推荐系统可以视为是一种决策，包含 M 个 user 和 N 个 item。在每个交互迭代 $t = 1, 2, ..., T$，对用户 $u$，通过策略 $\pi$ 推荐 item $i_{\pi}(t)$，并收到相应的反馈 $r_{\pi}(t)$。例如，若用户 $u$ 对 $i_{\pi}(t)$ 进行点击，那么 $r_{\pi}(t)$ 为 1，否则为 0。最优的策略为 $\pi^{*}$，目标是学习最优策略 $\pi$，经过 T 轮迭代积累的损失如下：
+
 <div align="center"> <img src=pics/eq1.png> </div>
 
 实际上，由于最优策略 $\pi^*$ 是未知的，通过最大化 $\sum_{t=1}^{T}E(r_{\pi}(t))$ 来等价代替最小化 Eq1。 <br>
@@ -30,4 +32,4 @@ __Framework 1. *Tree-based Exploration*__ 整个候选空间可以被结构化�
 
 ## METHODOLOGY
 ### 1.Tree Structure Construction
-在设计 hierarchical bandit algorithms 过程中，树的结构起到了重要作用。item 的类别信息可以被用来构造树结构，然而这种方式存在两处不足，一方面由于不同类的之间的数量差距较大，存在严重不均衡现象；另一方面这种构造方式没有利用到 user 行为信息，简单的使用类别信息会造成性能下降。基于此，作者首先通过 item 信息和 user 的点击相关信息训练 item embedding，然后使用 K-Means 聚类算法自下而上地构建一颗分层树结构，一次来建模 item 之间的相关性。 <br>
+在设计 hierarchical bandit algorithms 过程中，树的结构起到了重要作用。item 的类别信息可以被用来构造树结构，然而这种方式存在两处不足，一方面由于不同类的之间的数量差距较大，存在严重不均衡现象；另一方面这种构造方式没有利用到 user 行为信息，简单的使用类别信息会造成性能下降。基于此，作者首先通过 item 信息和 user 的点击相关信息训练 item embedding，然后使用 K-Means 聚类算法自下而上地构建一颗分层树结构，以此来建模 item 之间的相关性。 <br>
