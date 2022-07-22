@@ -33,3 +33,36 @@ __Framework 1. *Tree-based Exploration*__ 整个候选空间可以被结构化�
 ## METHODOLOGY
 ### 1.Tree Structure Construction
 在设计 hierarchical bandit algorithms 过程中，树的结构起到了重要作用。item 的类别信息可以被用来构造树结构，然而这种方式存在两处不足，一方面由于不同类的之间的数量差距较大，存在严重不均衡现象；另一方面这种构造方式没有利用到 user 行为信息，简单的使用类别信息会造成性能下降。基于此，作者首先通过 item 信息和 user 的点击相关信息训练 item embedding，然后使用 K-Means 聚类算法自下而上地构建一颗分层树结构，以此来建模 item 之间的相关性。 <br>
+要构造一颗 $L$ 层的树，首先要将根据 item 的 embedding 相似性将其聚类到 $k_L$ 节点中，然后这些节点将会通过 K-Means 进一步被聚类到 $k_{L-1}$ 节点中，并与 $k_L$ 几点构成父子关系。重复以上步骤直至构建完成 $L$ 层的树。这样，这颗 $L$ 层的树 $H$ 将会在每一层分别包含 ${k_0, k_1, ..., k_L}$ 个节点，其中 $k_0 = 1$ 因为在第一层只有一个根节点，在同一个节点内的 item 彼此之间具有较大相似性。 <br>
+### 2.Hierarchical Contextual Bandit
+HCB 可以被泛化到不同的 bandit 算法中，此处作者以 LinUCB 为例进行展示。有两种 arm：$H$ 上的非叶子节点以及叶子结点。$H$ 中的每个节点代表确定的 item 分组，叶子结点的特种采用节点内部 item embedding 的 avg pooling 表示，非叶子结点的特征采用子节点的特征的 avg pooling 表示。HCB 算法是从根节点到叶子结点的决策过程。对于 $l$ 层的非叶子节点 $n^{(l)}(t)$，策略 $\pi$ 通过假设 reward 与节点的特征向量成线性关系：$\theta_u^{(l)T}X_n$，并依此从子节点 $Ch(n^{(l)}(t))$ 中选取最优。其中 $\theta_u^{(l)}$ 是用户 u 在第 $l$ 层的 latent 参数，$D^{(l)} \in R^{m \times d}$ 是第 $l$ 层 item 的特征矩阵，$D^{(l)}$ 的每一行都是 item 的特征向量，使用 ridge regression 进行系数预估： <br>
+<div align="center"> <img src=pics/eq5.png> </div>
+
+其中 $I$ 是单位矩阵，$r^l$ 是第 $l$ 层的历史 reward 向量。LinUCB 同时也考虑了置信区间以便能够更好预估收益。令 $A^{(l)} = D^{(l)T}D^{(l)} + I$，根据[32]，在置信度为 $1 - \delta$ 时上界可表示为：<br>
+<div align="center"> <img src=pics/eq6.png> </div>
+
+其中 $\delta > 0$ 并且 $\alpha = 1 + \sqrt{ln(2/\delta)/2}$。LinUCB 通过 Eq7 选取arm： <br>
+<div align="center"> <img src=pics/eq7.png> </div>
+
+若策略 $\pi$ 选择了 $i_{\pi}(t)$ 并获得了 reward 为 $r_{\pi}(t)$，那么由根节点到当前节点的整个路径 Path 上的节点都会获得 reward。因此，所有被选中的节点的 reward 都能够得到，那么可以更新参数 $\{\theta_u^{(0)}, \theta_u^{(1)}, ..., \theta_u^{(L)}\}$：<br>
+<div align="center"> <img src=pics/eq8.png> </div>
+
+其中 $A^{(l)}$ 和 $b^{(l)}$ 分别使用 d 维的单位矩阵和零向量初始化，$X^{(l)}$ 是第 $l$ 层别选择节点的特征。<br>
+
+<div align="center"> <img src=pics/HCB.png> </div>
+
+HCB 算法的伪代码如 Algorithm 1，作者提供了一个示例图 Fig1，一个三层的树结构，策略依次进行三次决策并最终选择了 $\{A, C, I, P\}$ 这条路径，然后使用另一个 bandit 算法从叶子结点 $p$ 中选择 item。被选择的 item 的 reward 会通过更新 reward 历史 $r^{(*)}$ 和交互历史 $D^{(*)}$ 影响树中参数 $\{\theta_u^{(0)}, \theta_u^{(1)}, \theta_u^{(2)}, \theta_u^{(3)}\}$ 的优化。 <br>
+<div align="center"> <img src=pics/Fig1.png> </div>
+
+### 3.Progressive Hierarchical Contextual Bandit
+HCB 通过一系列的决策来学习用户兴趣并总是从叶子结点选取 item 会造成两个问题：(1)高层节点的决策很少能够影响到底层节点的决策，一旦在策略在某一层做了不好的选择，那么此后的选择都将是非最优的，当树层次结构更深时，问题尤其如此，作者将其命名为 _error propagation_；(2)用户可能不仅仅对一个节点感兴趣，贪心的选择一个节点将无法全面地捕捉用户兴趣。因此，作者进一步提出 pHCB 算法，核心的思想是根据历史曝光的反馈从上到下的扩大感受野。<br>
+Definition 1. _Receptive field 是个性化的节点集合代表着当前用户可以被挖掘的潜在兴趣。在首次迭代，感受野只包含根节点，随着探索的进行，当满足了预先设定的条件后感受野将会被扩展。感受野中的节点被称为 visible nodes_。<br>
+在 HCB 中只有叶子结点对应着一组 item，不同的是，在 pHCB 中允许策略在非叶子节点中选取相关联的 item。非叶子节点的 item 集合定义如下：<br>
+Definition 2. _给定一个非叶子结点以及其子节点 $Ch(n)$，该节点对应的 item 集合定义为其叶子结点对应 item 集合的并集_。<br>
+在第 $t$ 次迭代中，用户 $u$ 的感受野用 $V_u(t)$ 来表示，pHCB 将 $V_u(t)$ 中每个节点视作为一个 arm，通过 Eq2 计算最大的预估 reward 来选取一个 arm 记 $n(t)$，pHCB 直接从感受野中选取 arm 而不是沿着决策路径选取。<br>
+<div align="center"> <img src=pics/Fig2.png> </div>
+
+Fig2 是 pHCB 的一个示例，在 $T_a$ 次迭代，用户 $u$ 的感受野包含 $B,C,D$ 三个节点，在接下来的几次迭代，如果节点 $C$ 被多次选中并接收到正向反馈，那么它就满足了兴趣探索的条件，它的子节点 $G,H,I$ 将会代替 $C$ 被加入到感受野中。那么在第 $T_b$ 次迭代，感受将变为 $B,D,G,H,I$，用这种方式 pHCB 可以扩展自身感受野从而能够更好的探索用户兴趣。<br>
+扩张感受野 pHCB 的关键机制，树中节点的聚合粒度不同，高层节点代表了更广泛的用户兴趣，而底层节点代表了更细致的用户兴趣。作者希望感受野能够快速的收敛到叶子节点，因此设置了如下的探索条件：对树 $H$ 的第 $l$ 层的非叶子节点 $n$, 若 (1)它被选择了至少 $qlogl$ 次而且(2)平均 reward 大于 $plogl(0 \le p \le 1)$，那么就使用其叶子结点代替它加入感受野，$p、q$ 均为超参数，$logl$ 使得高层的节点比底层节点更容易被探索，如 Algorithm 2。<br>
+<div align="center"> <img src=pics/pHCB.png> </div>
+
