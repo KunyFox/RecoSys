@@ -1,4 +1,6 @@
 # RecoSys
+<div align="center"><img src=pics/reco_sys.png></div>
+
 ## Classical Papers
 | PAPER | LINK |
 | -------- | -------- |
